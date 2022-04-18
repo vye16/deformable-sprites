@@ -8,6 +8,7 @@ dependencies:
     - pip:
         - hydra-core
         - imageio
+        - imageio-ffmpeg
         - matplotlib
         - numpy
         - opencv-python
