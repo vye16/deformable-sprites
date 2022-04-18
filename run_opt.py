@@ -133,8 +133,8 @@ def main(cfg: DictConfig):
     # refine masks with gradients through recon loss
     # very easy to cheat with these gradients, not recommended
     label = "refine"
-    loss_fncs["recon"].detach_mask = False
     n_epochs = cfg.epochs_per_phase[label]
+    loss_fncs["recon"].detach_mask = False
     if n_epochs < 1:
         return
 

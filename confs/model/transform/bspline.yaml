@@ -4,4 +4,5 @@ defaults:
 local: True
 xy_step: 4
 bg_local: True
+max_step: 0.1
 final_nl: "tanh"
