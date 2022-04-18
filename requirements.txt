@@ -2,6 +2,7 @@ torch
 torchvision
 hydra-core
 imageio
+imageio-ffmpeg
 matplotlib
 numpy
 opencv-python
