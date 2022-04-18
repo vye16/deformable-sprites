@@ -37,15 +37,29 @@ def process_sequence(gpu, dtype, root, seq, gap, res="480p", batch_size=4):
 
 
 def main(args):
+    print("Have you updated the path to the RAFT repo? (y/n)")
+    resp = input()
+    if resp.lower() != "y":
+        print("Please modify scripts/run_raft.py")
+        sys.exit()
+    print("Comment this out in scripts/run_raft.py")
+
     if args.root is None:
+        print("Have you updated the paths to your data? (y/n)")
+        resp = input()
+        if resp.lower() != "y":
+            print("Please modify scripts/dataset_raft.py")
+            sys.exit()
+        print("Comment this out in scripts/dataset_raft.py")
+
         if args.dtype == "fbms":
-            args.root = "/home/vye/data/FBMS_Testset"
+            args.root = "/path/to/FBMS_Testset"
         elif args.dtype == "davis":
-            args.root = "/home/vye/data/DAVIS"
+            args.root = "/path/to/DAVIS"
         elif args.dtype == "stv2":
-            args.root = "/home/vye/data/SegTrackv2"
+            args.root = "/path/to/SegTrackv2"
         elif args.dtype == "custom":
-            args.root = "/home/vye/data/custom_videos"
+            args.root = "/path/to/custom_videos"
 
     if args.seqs is None:
         if args.dtype == "fbms":

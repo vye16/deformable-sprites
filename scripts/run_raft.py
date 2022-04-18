@@ -3,15 +3,16 @@ import imageio
 import glob
 import numpy as np
 import os
+import sys
+
 from PIL import Image
 
 from concurrent import futures
 
 import torch
 
-RAFT_BASE = os.path.expanduser("~/RAFT")
 
-import sys
+RAFT_BASE = "/path/to/RAFT"
 
 sys.path.append(os.path.join(RAFT_BASE, "core"))
 
