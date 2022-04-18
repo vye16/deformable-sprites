@@ -1,0 +1,16 @@
+name: deformable-sprites
+channels:
+    - pytorch
+    - defaults
+dependencies:
+    - python>=3.9
+    - pytorch==1.10.0
+    - pip:
+        - hydra-core
+        - imageio
+        - matplotlib
+        - numpy
+        - opencv-python
+        - tensorboard
+        - torchvision
+        - tqdm

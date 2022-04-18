@@ -54,9 +54,7 @@ if __name__ == "__main__":
         vals = gather_metric(run_dir, args.metric)
         if len(vals) < 1:
             print("metric {} computed 0 times in {}".format(args.metric, run_dir))
-            import ipdb
 
-            ipdb.set_trace()
         latest[job] = vals[-1]
         best[job] = np.max(vals, axis=0).tolist()
         i_best[job] = np.argmax(vals, axis=0).tolist()

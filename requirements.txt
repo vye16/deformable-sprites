@@ -1,0 +1,9 @@
+torch
+torchvision
+hydra-core
+imageio
+matplotlib
+numpy
+opencv-python
+tensorboard
+tqdm
