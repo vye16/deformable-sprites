@@ -2,7 +2,7 @@
 
 Vickie Ye, Zhengqi Li, Richard Tucker, Angjoo Kanazawa, Noah Snavely
 
-![Teaser](https://raw.github.com/vye16/deformable-sprites/master/teaser_edited.gif)
+![Teaser](https://raw.github.com/vye16/deformable-sprites/master/teaser.gif)
 
 Website: [link](https://deformable-sprites.github.io)
 arXiv: [link](https://arxiv.org/abs/2204.07151)
