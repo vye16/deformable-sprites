@@ -1,4 +1,4 @@
-root: "/home/vye/data/sintel-full/training_480p"
+root: "/path/to/sintel-full/training_480p"
 type: "sintel"
 res: "480p"
 seq: "bamboo_1"

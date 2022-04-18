@@ -1,6 +1,6 @@
-root: "/home/vye/data/custom_videos"
+root: "/path/to/custom_videos"
 type: "custom"
 res: "480p"
-seq: "walking_side_3.0-6.0_fps15"
+seq: "video_name_wo_ext"
 scale: 0.5
 flow_gap: 1

@@ -2,19 +2,28 @@ import argparse
 import os
 import subprocess
 import json
+import sys
 
 from concurrent import futures
 
 
 if __name__ == "__main__":
+    print("Have you updated the paths to your data? (y/n)")
+    resp = input()
+    if resp.lower() != "y":
+        print("Please modify scripts/dataset_extract.py")
+        sys.exit()
+    print("Comment this out in scripts/dataset_extract.py")
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--seqs", default=None, nargs="*")
-    parser.add_argument("--root", default="/home/vye/data/custom_videos")
+    parser.add_argument("--root", default="/path/to/custom_videos")
+    parser.add_argument("--specs", default="custom_specs.json")
     args = parser.parse_args()
 
     vid_root = os.path.join(args.root, "videos")
     out_root = os.path.join(args.root, "PNGImages")
-    with open("custom_specs.json", "r") as f:
+    with open(args.specs, "r") as f:
         time_specs = json.load(f)
 
     if args.seqs is None:

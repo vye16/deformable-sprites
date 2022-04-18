@@ -1,4 +1,4 @@
-root: "/home/vye/data/SegTrackv2"
+root: "/path/to/SegTrackv2"
 type: "stv2"
 res: "480p"
 seq: "soldier"

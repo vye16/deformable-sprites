@@ -1,4 +1,4 @@
-root: "/home/vye/data/FBMS_Testset"
+root: "/path/to/FBMS_Testset"
 type: "fbms"
 res: "480p"
 seq: "rabbits02"
