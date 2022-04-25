@@ -53,10 +53,10 @@ if __name__ == "__main__":
         "--ext", type=str, default="png", help="output filetype for frames"
     )
     parser.add_argument(
-        "--width", type=int, default=480, help="target width for frames"
+        "--width", type=int, default=-1, help="target width for frames"
     )
     parser.add_argument(
-        "--height", type=int, default=-1, help="target height for frames"
+        "--height", type=int, default=480, help="target height for frames"
     )
     parser.add_argument("--fps", type=int, default=10, help="fps to extract frames")
     parser.add_argument("--start", type=float, default=0, help="seconds to start")
