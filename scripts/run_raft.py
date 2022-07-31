@@ -20,7 +20,7 @@ from raft import RAFT
 from utils.utils import InputPadder
 from utils.flow_viz import flow_to_image
 
-sys.path.append(os.path.abspath("__file__/../../src"))
+sys.path.append(os.path.abspath("__file__/../.."))
 from data import write_flo
 
 
@@ -40,23 +40,22 @@ def is_image(path):
 
 
 def run_raft(args):
-    if args.out_img_dir is None:
-        args.out_img_dir = os.path.join(args.out_dir, "vis")
-
     imfiles = sorted(filter(is_image, glob.glob(f"{args.rgb_dir}/*")))
     if len(imfiles) < 1:
         print("NO IMAGES FOUND IN", args.rgb_dir)
         return
 
     os.makedirs(args.out_dir, exist_ok=True)
-    os.makedirs(args.out_img_dir, exist_ok=True)
     n_raw = len(os.listdir(args.out_dir))
     if n_raw == len(imfiles) - abs(args.gap):
         print("already {} flows existing in {}".format(n_raw, args.out_dir))
         return
 
     print("Running RAFT on", args.rgb_dir)
-    print("Writing flows to", args.out_dir, args.out_img_dir)
+
+    if args.out_img_dir is not None:
+        os.makedirs(args.out_img_dir, exist_ok=True)
+        print("Writing flows to", args.out_dir, args.out_img_dir)
 
     model = torch.nn.DataParallel(RAFT(args))
     model_path = os.path.join(RAFT_BASE, "models", args.ckpt)
@@ -107,12 +106,14 @@ def run_raft(args):
             raw_path = os.path.join(args.out_dir, "{}.flo".format(name))
             exe.submit(write_flo, raw_path, flows[i])
 
-            flow_img = flow_to_image(flows[i]).astype(np.uint8)
-            img_path = os.path.join(args.out_img_dir, "{}.png".format(name))
-            exe.submit(imageio.imwrite, img_path, flow_img)
+            if args.out_img_dir is not None:
+                flow_img = flow_to_image(flows[i]).astype(np.uint8)
+                img_path = os.path.join(args.out_img_dir, "{}.png".format(name))
+                exe.submit(imageio.imwrite, img_path, flow_img)
 
     print("Wrote {} raw flows to {}".format(len(flows), args.out_dir))
-    print("Wrote {} flow images to {}".format(len(flows), args.out_img_dir))
+    if args.out_img_dir is not None:
+        print("Wrote {} flow images to {}".format(len(flows), args.out_img_dir))
 
 
 if __name__ == "__main__":
