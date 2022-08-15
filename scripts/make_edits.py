@@ -9,118 +9,94 @@ import torchvision.transforms.functional as TF
 
 import sys
 
-sys.path.append(os.path.abspath("__file__/../../src"))
+sys.path.append(os.path.abspath("__file__/../.."))
 import utils
 
 
-def propagate_edits(src_dir, out_name, edit_idcs=None, ext="mp4", pad=8):
-    out_dir = os.path.join(src_dir, out_name)
+def propagate_edits(log_dir, img_dir, out_name, edit_idcs, ext="mp4", pad=8):
+    coords, edits, masks, imgs = load_components(log_dir, img_dir, edit_idcs)
+
+    out_dir = os.path.join(log_dir, out_name)
     os.makedirs(out_dir, exist_ok=True)
-    rgbs, masks, coords, texs = load_components(src_dir)
-    edited, idcs = load_edit_textures(src_dir, texs, edit_idcs)  # (M, 3, H, W)
 
-    M, C, H, W = texs.shape
-    rgb_rs = TF.resize(rgbs, (H, W), antialias=True)
+    N, M, h, w, _ = coords.shape
+    N, _, H, W = imgs.shape
+    for i in range(N):
+        mask = TF.resize(masks[i], (H, W), antialias=True)  # (M, 1, H, W)
+        apprs = imgs[i, None].repeat(M, 1, 1, 1)  # (M, 3, H, W)
 
-    ## make grid col [tex_old] col [tex_edit] col [composite]
-    tex_old_pad = [TF.pad(texs[i], pad, fill=1) for i in idcs]
-    tex_old_cat = torch.cat(tex_old_pad, dim=-2)[:, pad:-pad, pad:]
-
-    tex_edit_pad = [TF.pad(edited[i], pad, fill=1) for i in idcs]
-    tex_edit_cat = torch.cat(tex_edit_pad, dim=-2)[:, pad:-pad]
-
-    tex_cat = torch.cat([tex_old_cat, tex_edit_cat], dim=-1)
-
-    out_path = f"{out_dir}/edit_comp.{ext}"
-    grid_path = f"{out_dir}/grid_vis.{ext}"
-    layer_paths = [f"{out_dir}/edit_layers_{i}.{ext}" for i in range(M)]
-
-    comp_writer = imageio.get_writer(out_path, format=ext)
-    layer_writers = [imageio.get_writer(p, format=ext) for p in layer_paths]
-    grid_writer = imageio.get_writer(grid_path, format=ext)
-
-    for i in range(len(coords)):
-        appr = F.grid_sample(edited, coords[i], align_corners=False)  # (M, 3, h, w)
-        layers = masks[i] * appr  # (M, 3, h, w)
-        comp = layers.sum(dim=0)  # (3, h, w)
-        comp_writer.append_data((255 * comp.permute(1, 2, 0)).byte().numpy())
-
-        comp_rs = TF.resize(comp, (H, W), antialias=True)
-        comp_pad = TF.pad(comp_rs, [pad, 0, 0, 0], fill=1)
-        rgb_pad = TF.pad(rgb_rs[i], [0, 0, pad, 0], fill=1)
-        grid = torch.cat([rgb_pad, tex_cat, comp_pad], dim=2)
-        grid_writer.append_data((255 * grid.permute(1, 2, 0)).byte().numpy())
-
-        layer_vis = utils.composite_rgba_checkers(masks[i], layers)
-        for j, writer in enumerate(layer_writers):
-            writer.append_data((255 * layer_vis[j].permute(1, 2, 0)).byte().numpy())
+        # warp the edits into each frame
+        edit_w = F.grid_sample(edits, coords[i, edit_idcs])  # (M, C, h, w)
+        edit_w = TF.resize(edit_w, (H, W), antialias=True)
+        # composite the edits with the original frame if applicable
+        if edit_w.shape[1] == 4:
+            edit_w = edit_w[:, 3:] * edit_w[:, :3] + (1 - edit_w[:, 3:]) * imgs[i, None]
+        apprs[edit_idcs] = edit_w
+        comp = (mask * apprs).sum(dim=0)  # (3, H, W)
+        comp = (255 * comp).byte().permute(1, 2, 0)
+        imageio.imwrite(f"{out_dir}/{i:05d}.png", comp)
 
 
-def load_coords_precomputed(src_dir, precomputed=True):
+def load_components(log_dir, img_dir, edit_idcs):
+    coords = load_coords_precomputed(log_dir)
+    N, M, h, w, _ = coords.shape
+
+    imgs = load_imgs(img_dir, N)  # (N, 3, H, W)
+    masks = torch.stack(
+        [load_imgs(f"{log_dir}/masks_{m}", N) for m in range(M)], dim=1
+    )  # (N, M, 1, h, w)
+    edits = load_edits(log_dir, edit_idcs)  # (n_edits, C, th, tw)
+    return coords, edits, masks, imgs
+
+
+def load_coords_precomputed(log_dir):
     """
     loads the masks, textures, coords from src dir
     """
-    if precomputed:
-        coord_path = os.path.join(src_dir, "coords.pth")
-        coords = torch.load(coord_path).float()
-        return coords
+    coord_path = os.path.join(log_dir, "coords.pth")
+    if not os.path.isfile(coord_path):
+        ## TODO load from saved model checkpoint
+        raise NotImplementedError
 
-    ## TODO load from saved model checkpoint
-    raise NotImplementedError
-
-
-def load_masks(src_dir):
-    mask_paths = sorted(glob.glob(f"{src_dir}/masks_[0-9]*.gif"))
-    idcs = torch.tensor([get_index(p) for p in mask_paths])
-    masks = torch.from_numpy(
-        np.stack([np.stack(imageio.mimread(p), axis=0) for p in mask_paths], axis=1)
-    ).float()  # (n, m, h, w)
-    masks = masks[:, idcs].unsqueeze(2) / 255  # (n, m, 1, h, w)
-    return masks
+    coords = torch.load(coord_path).float()
+    return coords
 
 
-def load_rgbs(src_dir):
-    rgb_paths = sorted(glob.glob(f"{src_dir}/recons_[0-9]*.gif"))
-    if len(rgb_paths) != 1:
-        print("found {} matching rgbs, need {}".format(len(rgb_paths), 1))
+def isimage(path):
+    ext = os.path.splitext(path)[-1].lower()
+    return ext == ".png" or ext == ".jpg" or ext == ".jpeg"
+
+
+def load_imgs(img_dir, n_expected=-1):
+    img_paths = sorted(list(filter(isimage, glob.glob(f"{img_dir}/*"))))
+    if n_expected > 0 and len(img_paths) != n_expected:
+        print("found {} matching imgs, need {}".format(len(img_paths), n_expected))
         raise ValueError
-    rgbs = torch.from_numpy(np.stack(imageio.mimread(rgb_paths[0]), axis=0))
-    rgbs = rgbs.float().permute(0, 3, 1, 2)[:, :3] / 255  # (n, 3, h, w)
-    return rgbs
+    imgs = torch.from_numpy(np.stack([imageio.imread(p) for p in img_paths], axis=0))
+    imgs = imgs.reshape(*imgs.shape[:3], -1).float()  # (N, H, W, -1)
+    imgs = imgs.permute(0, 3, 1, 2)[:, :3] / 255  # (N, 3, H, W)
+    return imgs
 
 
-def load_textures(src_dir):
-    tex_paths = sorted(glob.glob(f"{src_dir}/texs_[0-9]*.png"))
-    idcs = torch.tensor([get_index(p) for p in tex_paths])
-    texs = torch.stack(
-        [torch.from_numpy(imageio.imread(p) / 255) for p in tex_paths], dim=0
-    ).float()  # (m, h, w, 3)
-    texs = texs[idcs].permute(0, 3, 1, 2)  # (m, 3, h, w)
-    print("texs shape", texs.shape)
-    return texs
+def load_edits(log_dir, idcs):
+    edit_paths = [f"{log_dir}/edit_{i}.png" for i in idcs]
+    print(edit_paths)
+    assert all(os.path.isfile(p) for p in edit_paths)
+
+    # check size of texture
+    test_tex = imageio.imread(f"{log_dir}/texs_0.png")  # (H, W, 3)
+    H, W, _ = test_tex.shape
+
+    # pad edits to be the same size
+    edits = torch.stack(
+        [torch.from_numpy(imageio.imread(path) / 255) for path in edit_paths],
+        dim=0,
+    ).float()
+    edits = pad_diff(edits.permute(0, 3, 1, 2), H, W)  # (N, C, H, W)
+    return edits
 
 
-def load_edit_textures(src_dir, texs, idcs=None):
-    M, _, H, W = texs.shape
-    tex_paths = sorted(glob.glob(f"{src_dir}/edit*_[0-9]*.png"))
-    # parse names for which textures to replace
-    all_idcs = [get_index(p) for p in tex_paths]
-    idcs = all_idcs
-    assert all(i < M for i in idcs)
-
-    edits = torch.clone(texs)
-    for i, edit_i in enumerate(idcs):
-        path = tex_paths[i]
-        print(f"loaded {edit_i}-th texture from {path}")
-        tex = torch.from_numpy(imageio.imread(path) / 255).permute(2, 0, 1).float()[:3]
-        tex = pad_diff(tex, edits[edit_i])
-        edits[i] = tex
-
-    return edits, idcs
-
-
-def pad_diff(src, tgt):
-    H, W = tgt.shape[-2:]
+def pad_diff(src, H, W):
     h, w = src.shape[-2:]
     pl = (W - w) // 2
     pt = (H - h) // 2
@@ -148,9 +124,10 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("src_dir")
+    parser.add_argument("log_dir", help="log directory with `coords.pth` checkpoint")
+    parser.add_argument("img_dir", help="the image input directory")
     parser.add_argument("--out_name", default="edited")
-    parser.add_argument("--edit_idcs", default=None, nargs="*", type=int)
+    parser.add_argument("--edit_idcs", default=[0], nargs="*", type=int)
     args = parser.parse_args()
 
-    propagate_edits(args.src_dir, args.out_name, args.edit_idcs)
+    propagate_edits(args.log_dir, args.img_dir, args.out_name, args.edit_idcs)
