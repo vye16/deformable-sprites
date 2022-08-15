@@ -4,6 +4,7 @@ val_epochs: 4
 vis_every: 3000
 val_every: 6000
 vis_grad: True
+save_grid: False
 
 iters_per_phase:
     epi: 6000

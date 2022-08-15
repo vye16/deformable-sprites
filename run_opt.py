@@ -61,6 +61,7 @@ def main(cfg: DictConfig):
         val_every=cfg.val_every,
         vis_grad=cfg.vis_grad,
         batch_size=cfg.batch_size,
+        save_grid=cfg.save_grid,
     )
     loss_fncs = {
         "f_warp": MaskWarpLoss(cfg.w_warp, flow_gap),
@@ -110,15 +111,11 @@ def main(cfg: DictConfig):
         # warmstart before estimating scale of textures
         n_warm = n_epochs // 2
         loss_fncs["tform"].detach_mask = False
-        step_ct, val_dict = opt_infer_helper(
-            n_warm, start=step_ct, label=label
-        )
+        step_ct, val_dict = opt_infer_helper(n_warm, start=step_ct, label=label)
         # re-init scale of textures with rough planar motion
         model.init_planar_motion(val_dict["masks"].to(DEVICE))
 
-    step_ct, val_dict = opt_infer_helper(
-        n_epochs, start=step_ct, label=label
-    )
+    step_ct, val_dict = opt_infer_helper(n_epochs, start=step_ct, label=label)
 
     # add deformations
     label = "deform"
@@ -126,9 +123,7 @@ def main(cfg: DictConfig):
     loss_fncs["tform"].unscaled = True
 
     n_epochs = cfg.epochs_per_phase[label]
-    step_ct, val_dict = opt_infer_helper(
-        n_epochs, start=step_ct, label=label
-    )
+    step_ct, val_dict = opt_infer_helper(n_epochs, start=step_ct, label=label)
 
     # refine masks with gradients through recon loss
     # very easy to cheat with these gradients, not recommended
@@ -138,9 +133,7 @@ def main(cfg: DictConfig):
     if n_epochs < 1:
         return
 
-    step_ct, val_dict = opt_infer_helper(
-        n_epochs, start=step_ct, label=label
-    )
+    step_ct, val_dict = opt_infer_helper(n_epochs, start=step_ct, label=label)
 
 
 if __name__ == "__main__":

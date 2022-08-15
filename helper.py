@@ -151,6 +151,7 @@ def opt_infer_step(
     batch_size=16,
     label="model",
     ckpt=None,
+    save_grid=False,
     **kwargs,
 ):
     """
@@ -181,7 +182,9 @@ def opt_infer_step(
         val_dict, val_out_dir = infer_model(
             step, val_loader, model, model_kwargs, loss_fncs, label=label
         )
-        save_grid_vis(val_out_dir, val_dict)
+        save_res_img_dirs(val_out_dir, val_dict, ["masks"])
+        if save_grid:
+            save_grid_vis(val_out_dir, val_dict)
 
     return step, val_dict
 
@@ -252,9 +255,9 @@ def compute_multiple_iou(batch_in, batch_out):
     return batch_out
 
 
-def save_grid_vis(out_dir, vis_dict, pad=4, save_dirs=False):
-    save_keys = ["rgb", "recons", "layers", "texs", "view_vis"]
-    if not all(x in vis_dict for x in save_keys):
+def save_grid_vis(out_dir, vis_dict, pad=4):
+    grid_keys = ["rgb", "recons", "layers", "texs", "view_vis"]
+    if not all(x in vis_dict for x in grid_keys):
         print(f"not all keys in vis_dict, cannot save to {out_dir}")
         return
 
@@ -264,10 +267,11 @@ def save_grid_vis(out_dir, vis_dict, pad=4, save_dirs=False):
     grid_path = os.path.join(out_dir, "grid_vis.mp4")
     utils.save_vid(grid_path, grid)
 
-    if save_dirs:
-        for save in save_keys:
-            save_dir = os.path.join(out_dir, save)
-            utils.save_batch_img_dir(save_dir, vis_dict[save])
+
+def save_res_img_dirs(out_dir, vis_dict, save_keys):
+    for save in save_keys:
+        save_dir = os.path.join(out_dir, save)
+        utils.save_batch_imgs(save_dir, vis_dict[save], True)
 
 
 def make_grid_vis(vis_dict, pad=4):

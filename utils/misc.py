@@ -101,7 +101,7 @@ def save_vis_dict(out_dir, vis_dict, save_keys=[], skip_keys=[], overwrite=False
     return out_paths
 
 
-def save_vis_batch(out_dir, name, vis_batch, rescale=True):
+def save_vis_batch(out_dir, name, vis_batch, rescale=False, save_dir=False):
     """
     :param out_dir
     :param name
@@ -122,28 +122,10 @@ def save_vis_batch(out_dir, name, vis_batch, rescale=True):
         vmax = torch.clamp_min(vmax, 1)
         vis_batch = vis_batch / vmax
 
-    # flatten the middle dimensions and write each video separately
-    B, *dims, C, H, W = vis_batch.shape
-    M = int(np.prod(dims))
-    vis_batch = (255 * vis_batch).byte()
-    vis_batch = vis_batch.reshape(B, M, C, H, W).permute(0, 1, 3, 4, 2)
-
-    if B == 1:
-        ext = ".png"
-        write_fnc = lambda path, im: imageio.imwrite(path, im[0])
-    else:
-        ext = ".gif"
-        write_fnc = imageio.mimwrite
-
-    paths = []
-    for m in range(M):
-        path = os.path.join(out_dir, f"{name}_{m}{ext}")
-        write_fnc(path, vis_batch[:, m])
-        paths.append(path)
-    return paths
+    return save_batch_imgs(os.path.join(out_dir, name), vis_batch, save_dir)
 
 
-def save_batch_img_dir(out_dir_pre, vis_batch):
+def save_batch_imgs(name, vis_batch, save_dir):
     """
     Saves a 4+D tensor of (B, *, 3, H, W) in separate image dirs of B files.
     :param out_dir_pre prefix of output image directories
@@ -154,13 +136,29 @@ def save_batch_img_dir(out_dir_pre, vis_batch):
     vis_batch = vis_batch.view(B, -1, C, H, W)
     vis_batch = (255 * vis_batch.permute(0, 1, 3, 4, 2)).byte()
     M = vis_batch.shape[1]
-    for i in range(M):
-        out = f"{out_dir_pre}_{i}"
-        os.makedirs(out, exist_ok=True)
-        for j in range(B):
-            path = f"{out}/{j:04d}.png"
-            vis = vis_batch[j, i]
-            imageio.imwrite(path, vis)
+
+    paths = []
+    for m in range(M):
+        if B == 1:  # save single image
+            path = f"{name}_{m}.png"
+            imageio.imwrite(path, vis_batch[0, m])
+        elif save_dir:  # save directory of images
+            path = f"{name}_{m}"
+            save_img_dir(path, vis_batch[:, m])
+        else:  # save gif
+            path = f"{name}_{m}.gif"
+            imageio.mimwrite(path, vis_batch[:, m])
+
+        paths.append(path)
+    return paths
+
+
+def save_img_dir(out, vis_batch):
+    N, _, H, W = vis_batch.shape
+    os.makedirs(out, exist_ok=True)
+    for i in range(N):
+        path = f"{out}/{j:05d}.png"
+        imageio.imwrite(path, vis_batch[i])
 
 
 def save_vid(path, vis_batch):
