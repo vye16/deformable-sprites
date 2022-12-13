@@ -154,9 +154,8 @@ def save_batch_imgs(name, vis_batch, save_dir):
 
 
 def save_img_dir(out, vis_batch):
-    N, _, H, W = vis_batch.shape
     os.makedirs(out, exist_ok=True)
-    for i in range(N):
+    for i in range(len(vis_batch)):
         path = f"{out}/{j:05d}.png"
         imageio.imwrite(path, vis_batch[i])
 
